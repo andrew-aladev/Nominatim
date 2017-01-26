@@ -32,9 +32,12 @@ add_definitions(-DNOMINATIM_VERSION="${NOMINATIM_VERSION}")
 #
 #-----------------------------------------------------------------------------
 
-set(BUILD_TESTS off CACHE BOOL "Build test suite" FORCE)
-set(WITH_LUA off CACHE BOOL "Build with lua support" FORCE)
-add_subdirectory(osm2pgsql)
+option(BUILD_TESTS "Build test suite" OFF)
+option(EXTERNAL_OSM2PGSQL "Do not use osm2pgsql from git submodule" OFF)
+
+if (NOT EXTERNAL_OSM2PGSQL)
+  add_subdirectory(osm2pgsql)
+endif()
 
 find_package(Threads REQUIRED)
 
@@ -108,21 +111,23 @@ endforeach()
 #
 #-----------------------------------------------------------------------------
 
-include(CTest)
+if (BUILD_TESTS)
+    include(CTest)
 
-set(TEST_BDD db osm2pgsql api)
+    set(TEST_BDD db osm2pgsql api)
 
-foreach (test ${TEST_BDD})
-    add_test(NAME bdd_${test}
-             COMMAND lettuce features/${test}
-             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests)
-    set_tests_properties(bdd_${test}
-        PROPERTIES ENVIRONMENT "NOMINATIM_DIR=${PROJECT_BINARY_DIR}")
-endforeach()
+    foreach (test ${TEST_BDD})
+        add_test(NAME bdd_${test}
+                COMMAND lettuce features/${test}
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests)
+        set_tests_properties(bdd_${test}
+            PROPERTIES ENVIRONMENT "NOMINATIM_DIR=${PROJECT_BINARY_DIR}")
+    endforeach()
 
-add_test(NAME php
-         COMMAND phpunit ./
-         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests-php)
+    add_test(NAME php
+            COMMAND phpunit ./
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests-php)
+endif()
 
 #-----------------------------------------------------------------------------
 

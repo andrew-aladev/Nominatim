@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "http://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>andrew.aladev@hiqo-solutions.com</email>
+    <name>Andrew Aladev</name>
+  </maintainer>
+  <longdescription>
+    Open Source search based on OpenStreetMap data.
+  </longdescription>
+  <use>
+    <flag name="internal-osm2pgsql">Use osm2pgsql from git submodule.</flag>
+    <flag name="test">Build test suite.</flag>
+  </use>
+</pkgmetadata>
