@@ -13,7 +13,7 @@ LICENSE="GPL-2"
 SLOT="0/9999"
 KEYWORDS=""
 
-IUSE="internal-osm2pgsql test"
+IUSE="internal-osm2pgsql doc test"
 
 RDEPEND="
     sys-libs/zlib
@@ -22,12 +22,14 @@ RDEPEND="
     dev-db/postgresql
     !internal-osm2pgsql? ( sci-geosciences/osm2pgsql )
     test? (
+        dev-db/postgresql[server]
+        dev-lang/php[cgi]
+        dev-php/phpunit
+        =dev-lang/python-3*
         dev-python/behave
         dev-python/nose
-        dev-python/pip
         dev-python/pytidylib
         dev-python/psycopg:2
-        dev-php/phpunit
     )
 "
 DEPEND="${RDEPEND}"
@@ -39,13 +41,13 @@ src_unpack() {
 src_configure() {
     local mycmakeargs=(
         $(cmake-utils_use !internal-osm2pgsql EXTERNAL_OSM2PGSQL)
+        $(cmake-utils_use doc                 BUILD_DOC)
         $(cmake-utils_use test                BUILD_TESTS)
     )
     cmake-utils_src_configure
 }
 
 src_test() {
-    pip install lettuce || die "lettuce is required"
     cmake-utils_src_test
 }
 

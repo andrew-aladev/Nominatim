@@ -16,7 +16,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 #
 #-----------------------------------------------------------------------------
 
-project(nominatim)
+project("nominatim")
 
 set(NOMINATIM_VERSION_MAJOR 2)
 set(NOMINATIM_VERSION_MINOR 5)
@@ -24,6 +24,19 @@ set(NOMINATIM_VERSION_MINOR 5)
 set(NOMINATIM_VERSION "${NOMINATIM_VERSION_MAJOR}.${NOMINATIM_VERSION_MINOR}")
 
 add_definitions(-DNOMINATIM_VERSION="${NOMINATIM_VERSION}")
+
+if (NOT DEFINED CMAKE_INSTALL_BINDIR)
+    set (CMAKE_INSTALL_BINDIR "bin" CACHE PATH "Output directory for binaries")
+endif ()
+if (NOT DEFINED CMAKE_INSTALL_LIBDIR)
+    set (CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "Output directory for libraries")
+endif ()
+if (NOT DEFINED CMAKE_INSTALL_WWWDIR)
+    set (CMAKE_INSTALL_WWWDIR "share/nominatim" CACHE PATH "Output directory for website data")
+endif ()
+if (NOT DEFINED CMAKE_INSTALL_DOCDIR)
+    set (CMAKE_INSTALL_DOCDIR "share/doc" CACHE PATH "Output directory for docs")
+endif ()
 
 
 #-----------------------------------------------------------------------------
@@ -33,10 +46,11 @@ add_definitions(-DNOMINATIM_VERSION="${NOMINATIM_VERSION}")
 #-----------------------------------------------------------------------------
 
 option(BUILD_TESTS "Build test suite" OFF)
+option(BUILD_DOC "Build docs" OFF)
 option(EXTERNAL_OSM2PGSQL "Do not use osm2pgsql from git submodule" OFF)
 
 if (NOT EXTERNAL_OSM2PGSQL)
-  add_subdirectory(osm2pgsql)
+  add_subdirectory("osm2pgsql")
 endif()
 
 find_package(Threads REQUIRED)
@@ -44,14 +58,16 @@ find_package(Threads REQUIRED)
 unset(PostgreSQL_TYPE_INCLUDE_DIR CACHE)
 set(PostgreSQL_TYPE_INCLUDE_DIR "/usr/include/")
 find_package(PostgreSQL REQUIRED)
-include_directories(${PostgreSQL_INCLUDE_DIRS})
+include_directories("${PostgreSQL_INCLUDE_DIRS}")
 
-find_program(PG_CONFIG pg_config)
-execute_process(COMMAND ${PG_CONFIG} --pgxs
-                OUTPUT_VARIABLE PGXS
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
+find_program(PG_CONFIG "pg_config")
+execute_process(
+    COMMAND ${PG_CONFIG} "--pgxs"
+    OUTPUT_VARIABLE PGXS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 
-if (NOT EXISTS "${PGXS}")
+if (NOT EXISTS ${PGXS})
     message(FATAL_ERROR "Postgresql server package not found.")
 endif()
 
@@ -60,7 +76,7 @@ find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
 
 find_package(LibXml2 REQUIRED)
-include_directories(${LIBXML2_INCLUDE_DIR})
+include_directories("${LIBXML2_INCLUDE_DIR}")
 
 #-----------------------------------------------------------------------------
 #
@@ -68,39 +84,39 @@ include_directories(${LIBXML2_INCLUDE_DIR})
 #
 #-----------------------------------------------------------------------------
 
-set(CUSTOMFILES
-    settings/phrase_settings.php
-    website/deletable.php
-    website/details.php
-    website/hierarchy.php
-    website/lookup.php
-    website/polygons.php
-    website/reverse.php
-    website/search.php
-    website/status.php
-    utils/blocks.php
-    utils/country_languages.php
-    utils/imports.php
-    utils/importWikipedia.php
-    utils/query.php
-    utils/server_compare.php
-    utils/setup.php
-    utils/specialphrases.php
-    utils/update.php
-    utils/warm.php
-   )
+set(
+    CUSTOMFILES
+    "settings/phrase_settings.php"
+    "website/deletable.php"
+    "website/details.php"
+    "website/hierarchy.php"
+    "website/lookup.php"
+    "website/polygons.php"
+    "website/reverse.php"
+    "website/search.php"
+    "website/status.php"
+    "utils/blocks.php"
+    "utils/country_languages.php"
+    "utils/imports.php"
+    "utils/importWikipedia.php"
+    "utils/query.php"
+    "utils/server_compare.php"
+    "utils/setup.php"
+    "utils/specialphrases.php"
+    "utils/update.php"
+    "utils/warm.php"
+)
 
 foreach (cfile ${CUSTOMFILES})
-    configure_file(${PROJECT_SOURCE_DIR}/${cfile} ${PROJECT_BINARY_DIR}/${cfile})
+    configure_file("${PROJECT_SOURCE_DIR}/${cfile}" "${PROJECT_BINARY_DIR}/${cfile}")
 endforeach()
 
-configure_file(${PROJECT_SOURCE_DIR}/settings/defaults.php ${PROJECT_BINARY_DIR}/settings/settings.php)
+configure_file("${PROJECT_SOURCE_DIR}/settings/defaults.php" "${PROJECT_BINARY_DIR}/settings/settings.php")
 
-set(WEBPATHS css images js)
-
+set(WEBPATHS "css" "images" "js")
 foreach (wp ${WEBPATHS})
     execute_process(
-        COMMAND ln -sf ${PROJECT_SOURCE_DIR}/website/${wp} ${PROJECT_BINARY_DIR}/website/
+        COMMAND "cp" "-R" "${PROJECT_SOURCE_DIR}/website/${wp}" "${PROJECT_BINARY_DIR}/website/"
     )
 endforeach()
 
@@ -114,25 +130,33 @@ endforeach()
 if (BUILD_TESTS)
     include(CTest)
 
-    set(TEST_BDD db osm2pgsql api)
-
-    foreach (test ${TEST_BDD})
-        add_test(NAME bdd_${test}
-                COMMAND lettuce features/${test}
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests)
-        set_tests_properties(bdd_${test}
-            PROPERTIES ENVIRONMENT "NOMINATIM_DIR=${PROJECT_BINARY_DIR}")
-    endforeach()
-
-    add_test(NAME php
-            COMMAND phpunit ./
-            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/tests-php)
+    add_test(
+        NAME "php"
+        COMMAND "phpunit" "../"
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/test/php"
+    )
+    add_test(
+        NAME "behave"
+        COMMAND "behave"
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/test/bdd"
+    )
 endif()
 
 #-----------------------------------------------------------------------------
 
-add_subdirectory(module)
-add_subdirectory(nominatim)
-add_subdirectory(docs)
+add_subdirectory("module")
+add_subdirectory("nominatim")
+
+if (BUILD_DOC)
+    add_subdirectory("docs")
+endif()
 
 #-----------------------------------------------------------------------------
+#
+# Installation
+#
+#-----------------------------------------------------------------------------
+
+install(DIRECTORY "website"  DESTINATION ${CMAKE_INSTALL_WWWDIR})
+install(DIRECTORY "settings" DESTINATION ${CMAKE_INSTALL_WWWDIR})
+install(DIRECTORY "utils"    DESTINATION ${CMAKE_INSTALL_WWWDIR})
