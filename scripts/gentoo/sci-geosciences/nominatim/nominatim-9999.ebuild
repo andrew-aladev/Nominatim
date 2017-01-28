@@ -19,6 +19,8 @@ RDEPEND="
     sys-libs/zlib
     app-arch/bzip2
     dev-libs/libxml2
+    dev-lang/php
+    dev-php/PEAR-DB
     dev-db/postgresql
     !internal-osm2pgsql? ( sci-geosciences/osm2pgsql )
     test? (
