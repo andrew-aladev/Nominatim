@@ -157,7 +157,10 @@ endif()
 #
 #-----------------------------------------------------------------------------
 
+install(DIRECTORY "lib"     DESTINATION ${CMAKE_INSTALL_WWWDIR})
 install(DIRECTORY "website" DESTINATION ${CMAKE_INSTALL_WWWDIR})
 install(DIRECTORY "utils"   DESTINATION ${CMAKE_INSTALL_WWWDIR})
+install(DIRECTORY "data"    DESTINATION ${CMAKE_INSTALL_WWWDIR})
+install(DIRECTORY "sql"     DESTINATION ${CMAKE_INSTALL_WWWDIR})
 
 install(DIRECTORY "${PROJECT_BINARY_DIR}/settings" DESTINATION ${CMAKE_INSTALL_WWWDIR})
