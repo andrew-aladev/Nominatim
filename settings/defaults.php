@@ -1,5 +1,5 @@
 <?php
-@define('CONST_BasePath', '@${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_WWWDIR}@');
+@define('CONST_BasePath', '${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_WWWDIR}');
 @define('CONST_InstallPath', CONST_BasePath);
 if (file_exists(getenv('NOMINATIM_SETTINGS'))) require_once(getenv('NOMINATIM_SETTINGS'));
 if (file_exists(CONST_InstallPath.'/settings/local.php')) require_once(CONST_InstallPath.'/settings/local.php');
