@@ -87,12 +87,13 @@ if ($aCMDResult['create-db'] || $aCMDResult['all']) {
     $bDidSomething = true;
     $oDB = DB::connect(CONST_Database_DSN, false);
 
-    $actionTemplate = 'PGPASSWORD="'.$aDSNInfo['password'].'" %s -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' '.$aDSNInfo['database'];
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+    $actionTemplate = '%s -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' '.$aDSNInfo['database'];
     if (!PEAR::isError($oDB)) {
         fail('database already exists ('.CONST_Database_DSN.')');
         //passthruCheckReturn(sprintf($actionTemplate, "dropdb"));
     }
-    passthruCheckReturn(sprintf($actionTemplate, "creatdb -E UTF-8"));
+    passthruCheckReturn(sprintf($actionTemplate, "createdb -E UTF-8"));
 }
 
 if ($aCMDResult['setup-db'] || $aCMDResult['all']) {
