@@ -89,7 +89,7 @@ if ($aCMDResult['create-db'] || $aCMDResult['all']) {
     if (!PEAR::isError($oDB)) {
         fail('database already exists ('.CONST_Database_DSN.')');
     }
-    passthruCheckReturn('createdb -E UTF-8 -p '.$aDSNInfo['port'].' '.$aDSNInfo['database']);
+    passthruCheckReturn('createdb -E UTF-8 -h '.$aDSNInfo['host'].' -p '.$aDSNInfo['port'].' '.$aDSNInfo['database']);
 }
 
 if ($aCMDResult['setup-db'] || $aCMDResult['all']) {
