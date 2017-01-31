@@ -90,7 +90,7 @@ if ($aCMDResult['create-db'] || $aCMDResult['all']) {
     putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
     $actionTemplate = '%s -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' '.$aDSNInfo['database'];
     if (!PEAR::isError($oDB)) {
-        fail('database already exists ('.CONST_Database_DSN.')');
+        //fail('database already exists ('.CONST_Database_DSN.')');
         //passthruCheckReturn(sprintf($actionTemplate, "dropdb"));
     }
     passthruCheckReturn(sprintf($actionTemplate, "createdb -E UTF-8"));
@@ -165,6 +165,8 @@ if ($aCMDResult['import-data'] || $aCMDResult['all']) {
     echo "Import\n";
     $bDidSomething = true;
 
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     $osm2pgsql = CONST_Osm2pgsql_Binary;
     if (!file_exists($osm2pgsql)) {
         echo "Check CONST_Osm2pgsql_Binary in your local settings file.\n";
@@ -185,6 +187,8 @@ if ($aCMDResult['import-data'] || $aCMDResult['all']) {
         $osm2pgsql .= ' --tablespace-main-index '.CONST_Tablespace_Place_Index;
     $osm2pgsql .= ' -lsc -O gazetteer --hstore --number-processes 1';
     $osm2pgsql .= ' -C '.$iCacheMemory;
+    $osm2pgsql .= ' -U '.$aDSNInfo['username'];
+    $osm2pgsql .= ' -H '.$aDSNInfo['hostspec'];
     $osm2pgsql .= ' -P '.$aDSNInfo['port'];
     $osm2pgsql .= ' -d '.$aDSNInfo['database'].' '.$aCMDResult['osm-file'];
     passthruCheckReturn($osm2pgsql);
@@ -697,8 +701,11 @@ function pgsqlRunScriptFile($sFilename)
 
     // Convert database DSN to psql parameters
     $aDSNInfo = DB::parseDSN(CONST_Database_DSN);
+
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     if (!isset($aDSNInfo['port']) || !$aDSNInfo['port']) $aDSNInfo['port'] = 5432;
-    $sCMD = 'psql -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'];
+    $sCMD = 'psql -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'];
 
     $ahGzipPipes = null;
     if (preg_match('/\\.gz$/', $sFilename)) {
@@ -747,8 +754,12 @@ function pgsqlRunScript($sScript, $bfatal = true)
     global $aCMDResult;
     // Convert database DSN to psql parameters
     $aDSNInfo = DB::parseDSN(CONST_Database_DSN);
+
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     if (!isset($aDSNInfo['port']) || !$aDSNInfo['port']) $aDSNInfo['port'] = 5432;
-    $sCMD = 'psql -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'];
+    $sCMD = 'psql -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'];
+
     if ($bfatal && !$aCMDResult['ignore-errors'])
         $sCMD .= ' -v ON_ERROR_STOP=1';
     $aDescriptors = array(
@@ -797,8 +808,11 @@ function pgsqlRunRestoreData($sDumpFile)
 {
     // Convert database DSN to psql parameters
     $aDSNInfo = DB::parseDSN(CONST_Database_DSN);
+
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     if (!isset($aDSNInfo['port']) || !$aDSNInfo['port']) $aDSNInfo['port'] = 5432;
-    $sCMD = 'pg_restore -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -Fc -a '.$sDumpFile;
+    $sCMD = 'pg_restore -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -Fc -a '.$sDumpFile;
 
     $aDescriptors = array(
                      0 => array('pipe', 'r'),
@@ -824,8 +838,11 @@ function pgsqlRunDropAndRestore($sDumpFile)
 {
     // Convert database DSN to psql parameters
     $aDSNInfo = DB::parseDSN(CONST_Database_DSN);
+
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     if (!isset($aDSNInfo['port']) || !$aDSNInfo['port']) $aDSNInfo['port'] = 5432;
-    $sCMD = 'pg_restore -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -Fc --clean '.$sDumpFile;
+    $sCMD = 'pg_restore -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -Fc --clean '.$sDumpFile;
 
     $aDescriptors = array(
                      0 => array('pipe', 'r'),
