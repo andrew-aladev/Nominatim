@@ -10,6 +10,8 @@
   </longdescription>
   <use>
     <flag name="internal-osm2pgsql">Use osm2pgsql from git submodule.</flag>
+    <flag name="deploy">Deploy website.</flag>
+    <flag name="doc">Build doc.</flag>
     <flag name="test">Build test suite.</flag>
   </use>
 </pkgmetadata>

@@ -13,16 +13,18 @@ LICENSE="GPL-2"
 SLOT="0/9999"
 KEYWORDS=""
 
-IUSE="internal-osm2pgsql doc test"
+IUSE="internal-osm2pgsql deploy doc test"
 
 RDEPEND="
     sys-libs/zlib
     app-arch/bzip2
     dev-libs/libxml2
-    dev-lang/php
-    dev-php/PEAR-DB
     dev-db/postgresql
     !internal-osm2pgsql? ( sci-geosciences/osm2pgsql )
+    deploy? (
+        dev-lang/php
+        dev-php/PEAR-DB
+    )
     test? (
         dev-db/postgresql[server]
         dev-lang/php[cgi]
