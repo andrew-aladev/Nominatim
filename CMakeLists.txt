@@ -45,11 +45,12 @@ endif ()
 #
 #-----------------------------------------------------------------------------
 
+option(BUILD_DEPLOY "Build utils for website deployment")
 option(BUILD_TESTS "Build test suite" OFF)
 option(BUILD_DOC "Build docs" OFF)
 option(EXTERNAL_OSM2PGSQL "Do not use osm2pgsql from git submodule" OFF)
 
-if (NOT EXTERNAL_OSM2PGSQL)
+if (NOT BUILD_DEPLOY OR NOT EXTERNAL_OSM2PGSQL)
   add_subdirectory("osm2pgsql")
 endif()
 
