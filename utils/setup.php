@@ -88,6 +88,7 @@ if ($aCMDResult['create-db'] || $aCMDResult['all']) {
     $oDB = DB::connect(CONST_Database_DSN, false);
 
     putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
     $actionTemplate = '%s -U '.$aDSNInfo['username'].' -h '.$aDSNInfo['hostspec'].' -p '.$aDSNInfo['port'].' '.$aDSNInfo['database'];
     if (!PEAR::isError($oDB)) {
         //fail('database already exists ('.CONST_Database_DSN.')');
@@ -576,7 +577,10 @@ if ($aCMDResult['osmosis-init'] || ($aCMDResult['all'] && !$aCMDResult['drop']))
 if ($aCMDResult['index'] || $aCMDResult['all']) {
     $bDidSomething = true;
     $sOutputFile = '';
-    $sBaseCmd = CONST_InstallPath.'/nominatim/nominatim -i -d '.$aDSNInfo['database'].' -P '.$aDSNInfo['port'].' -t '.$iInstances.$sOutputFile;
+
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+
+    $sBaseCmd = CONST_InstallPath.'/nominatim/nominatim -i -U '.$aDSNInfo['username'].' -H '.$aDSNInfo['hostspec'].' -P '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -t '.$iInstances.$sOutputFile;
     passthruCheckReturn($sBaseCmd.' -R 4');
     if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
     passthruCheckReturn($sBaseCmd.' -r 5 -R 25');
