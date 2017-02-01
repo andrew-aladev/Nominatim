@@ -169,4 +169,4 @@ if (BUILD_DEPLOY)
 endif()
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/module/nominatim.so" DESTINATION ${CMAKE_INSTALL_WWWDIR}/module)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/nominatim/nominatim" DESTINATION ${CMAKE_INSTALL_WWWDIR}/nominatim)
+install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/nominatim/nominatim" DESTINATION ${CMAKE_INSTALL_WWWDIR}/nominatim)
