@@ -20,8 +20,8 @@ RDEPEND="
     app-arch/bzip2
     dev-libs/libxml2
     dev-db/postgresql
-    !internal-osm2pgsql? ( sci-geosciences/osm2pgsql )
     deploy? (
+        !internal-osm2pgsql? ( sci-geosciences/osm2pgsql )
         dev-lang/php
         dev-php/PEAR-DB
     )
@@ -44,9 +44,10 @@ src_unpack() {
 
 src_configure() {
     local mycmakeargs=(
-        $(cmake-utils_use !internal-osm2pgsql EXTERNAL_OSM2PGSQL)
-        $(cmake-utils_use doc                 BUILD_DOC)
-        $(cmake-utils_use test                BUILD_TESTS)
+        $(cmake-utils_use (!deploy || !internal-osm2pgsql) EXTERNAL_OSM2PGSQL)
+
+        $(cmake-utils_use doc  BUILD_DOC)
+        $(cmake-utils_use test BUILD_TESTS)
     )
     cmake-utils_src_configure
 }
