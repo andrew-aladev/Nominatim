@@ -1,9 +1,9 @@
 # Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI="5"
+EAPI="6"
 
-inherit cmake-utils git-2
+inherit cmake-utils git-r3
 
 DESCRIPTION="Open Source search based on OpenStreetMap data."
 HOMEPAGE="https://github.com/andrew-aladev/Nominatim"
@@ -38,10 +38,6 @@ RDEPEND="
 "
 DEPEND="${RDEPEND}"
 
-src_unpack() {
-    git-2_src_unpack
-}
-
 src_configure() {
     local mycmakeargs=(
         $(cmake-utils_use !internal-osm2pgsql EXTERNAL_OSM2PGSQL)
@@ -51,12 +47,4 @@ src_configure() {
         $(cmake-utils_use test   BUILD_TESTS)
     )
     cmake-utils_src_configure
-}
-
-src_test() {
-    cmake-utils_src_test
-}
-
-src_install() {
-    cmake-utils_src_install
 }
