@@ -153,7 +153,7 @@ class ReverseGeocode
             // look for an interpolation that is closer
             $aPlaceLine = $this->lookupInterpolation($sPointSQL, $fDistancePlacex);
 
-            if ($aPlaceLine) {
+            if ($aPlaceLine && (float) $aPlaceLine['distance'] < (float) $fDistancePlacex) {
                 // interpolation is closer to point than placex house
                 $bPlaceIsLine = true;
                 $aPlace = $aPlaceLine;
@@ -201,6 +201,8 @@ class ReverseGeocode
         if ($iPlaceID && $iMaxRank < 28) {
             if (($aPlace['rank_search'] > 28 || $bPlaceIsTiger || $bPlaceIsLine) && $iParentPlaceID) {
                 $iPlaceID = $iParentPlaceID;
+                $bPlaceIsLine = false;
+                $bPlaceIsTiger = false;
             }
             $sSQL  = 'select address_place_id';
             $sSQL .= ' FROM place_addressline';

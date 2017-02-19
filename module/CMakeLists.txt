@@ -5,7 +5,7 @@ ADD_CUSTOM_COMMAND(
         "PGXS=${PGXS}"
         "PG_CONFIG=${PG_CONFIG}"
         "MODSRCDIR=${CMAKE_CURRENT_SOURCE_DIR}"
-        "make" "-f" "${CMAKE_CURRENT_SOURCE_DIR}/Makefile"
+        $(MAKE) "-f" "${CMAKE_CURRENT_SOURCE_DIR}/Makefile"
     COMMENT "Running external makefile ${PGXS}"
 )
 
