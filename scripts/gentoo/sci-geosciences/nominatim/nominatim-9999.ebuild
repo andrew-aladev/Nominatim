@@ -40,11 +40,11 @@ DEPEND="${RDEPEND}"
 
 src_configure() {
     local mycmakeargs=(
-        $(cmake-utils_use !internal-osm2pgsql EXTERNAL_OSM2PGSQL)
+        -DEXTERNAL_OSM2PGSQL=$(usex !internal-osm2pgsql)
 
-        $(cmake-utils_use deploy BUILD_DEPLOY)
-        $(cmake-utils_use doc    BUILD_DOC)
-        $(cmake-utils_use test   BUILD_TESTS)
+        -DBUILD_DEPLOY=$(usex deploy)
+        -DBUILD_DOC=$(usex doc)
+        -DBUILD_TESTS=$(usex test)
     )
     cmake-utils_src_configure
 }
