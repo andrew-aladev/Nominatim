@@ -218,7 +218,8 @@ if ($aResult['deduplicate']) {
 }
 
 if ($aResult['index']) {
-    passthru(CONST_InstallPath.'/nominatim/nominatim -i -d '.$aDSNInfo['database'].' -P '.$aDSNInfo['port'].' -t '.$aResult['index-instances'].' -r '.$aResult['index-rank']);
+    putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
+    passthru(CONST_InstallPath.'/nominatim/nominatim -i -U '.$aDSNInfo['username'].' -H '.$aDSNInfo['hostspec'].' -P '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -t '.$aResult['index-instances'].' -r '.$aResult['index-rank']);
 }
 
 if ($aResult['import-osmosis'] || $aResult['import-osmosis-all']) {
