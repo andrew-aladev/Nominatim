@@ -581,16 +581,11 @@ if ($aCMDResult['index'] || $aCMDResult['all']) {
     putenv('PGPASSWORD="'.$aDSNInfo['password'].'"');
 
     $sBaseCmd = CONST_InstallPath.'/nominatim/nominatim -i -U '.$aDSNInfo['username'].' -H '.$aDSNInfo['hostspec'].' -P '.$aDSNInfo['port'].' -d '.$aDSNInfo['database'].' -t '.$iInstances.$sOutputFile;
-
     passthruCheckReturn($sBaseCmd.' -R 4');
     if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
-
-    passthruCheckReturn($sBaseCmd.' -r 5 -R 15');
+    passthruCheckReturn($sBaseCmd.' -r 5 -R 25');
     if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
-
-    // passthruCheckReturn($sBaseCmd.' -r 5 -R 25');
-    // if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
-    // passthruCheckReturn($sBaseCmd.' -r 26');
+    passthruCheckReturn($sBaseCmd.' -r 26');
 }
 
 if ($aCMDResult['create-search-indices'] || $aCMDResult['all']) {
