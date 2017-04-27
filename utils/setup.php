@@ -584,8 +584,8 @@ if ($aCMDResult['index'] || $aCMDResult['all']) {
     passthruCheckReturn($sBaseCmd.' -R 4');
     if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
     passthruCheckReturn($sBaseCmd.' -r 5 -R 25');
-    if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
-    passthruCheckReturn($sBaseCmd.' -r 26');
+    // if (!$aCMDResult['index-noanalyse']) pgsqlRunScript('ANALYSE');
+    // passthruCheckReturn($sBaseCmd.' -r 26');
 }
 
 if ($aCMDResult['create-search-indices'] || $aCMDResult['all']) {
