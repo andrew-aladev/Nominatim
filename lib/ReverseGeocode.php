@@ -57,7 +57,7 @@ class ReverseGeocode
         $sSQL .= ' , ST_Distance(linegeo,'.$sPointSQL.') as distance';
         $sSQL .= ' FROM location_property_osmline';
         $sSQL .= ' WHERE ST_DWithin('.$sPointSQL.', linegeo, '.$fSearchDiam.')';
-        $sSQL .= ' and indexed_status = 0 ';
+        $sSQL .= ' and indexed_status = 0 and startnumber is not NULL ';
         $sSQL .= ' ORDER BY ST_distance('.$sPointSQL.', linegeo) ASC limit 1';
 
         return chksql(
@@ -118,7 +118,7 @@ class ReverseGeocode
                 $iMaxRank = 26;
             }
 
-            $sSQL = 'select place_id,parent_place_id,rank_search,calculated_country_code';
+            $sSQL = 'select place_id,parent_place_id,rank_search,country_code';
             $sSQL .= ' FROM placex';
             $sSQL .= ' WHERE ST_DWithin('.$sPointSQL.', geometry, '.$fSearchDiam.')';
             $sSQL .= ' and rank_search != 28 and rank_search >= '.$iMaxRank;
@@ -135,7 +135,7 @@ class ReverseGeocode
             );
             $iPlaceID = $aPlace['place_id'];
             $iParentPlaceID = $aPlace['parent_place_id'];
-            $bIsInUnitedStates = ($aPlace['calculated_country_code'] == 'us');
+            $bIsInUnitedStates = ($aPlace['country_code'] == 'us');
         }
 
         // If a house was found make sure there isn't an interpolation line

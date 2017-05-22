@@ -3,7 +3,7 @@ Importing a new database
 
 The following instructions explain how to create a Nominatim database
 from an OSM planet file and how to keep the database up to date. It
-is assumed that you have already sucessfully installed the Nominatim
+is assumed that you have already successfully installed the Nominatim
 software itself, if not return to the [installation page](Installation.md).
 
 Configuration setup in settings/local.php
@@ -80,10 +80,10 @@ Nominatim is able to use the official TIGER address set to complement the
 OSM housenumber data in the US. You can add TIGER data to your own Nominatim
 instance by following these steps:
 
-  1. Install the GDAL library and python bindings
+  1. Install the GDAL library and python bindings and the unzip tool
 
-       * Ubuntu: `sudo apt-get install python-gdal`
-       * CentOS: `sudo yum install gdal-python`
+       * Ubuntu: `sudo apt-get install python-gdal unzip`
+       * CentOS: `sudo yum install gdal-python unzip`
 
   2. Get the TIGER 2015 data. You will need the EDGES files
      (3,234 zip files, 11GB total). Choose one of the two sources:
@@ -178,5 +178,5 @@ The following command will keep your database constantly up to date:
 
 If you have imported multiple country extracts and want to keep them
 up-to-date, have a look at the script in
-[issue #60](https://github.com/twain47/Nominatim/issues/60).
+[issue #60](https://github.com/openstreetmap/Nominatim/issues/60).
 

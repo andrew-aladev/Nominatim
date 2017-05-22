@@ -4,7 +4,7 @@
 # https://docs.travis-ci.com/user/trusty-ci-environment/
 # Ubuntu 14 (trusty)
 # user 'travis'
-# $TRAVIS_BUILD_DIR is /home/travis/build/twain47/Nominatim/, for others see
+# $TRAVIS_BUILD_DIR is /home/travis/build/openstreetmap/Nominatim/, for others see
 #   https://docs.travis-ci.com/user/environment-variables/#Default-Environment-Variables
 # Postgres 9.6 installed and started. role 'travis' already superuser
 # Python 3.6
@@ -45,6 +45,7 @@ EOFAPACHECONF
 sudo a2enconf nominatim
 sudo service apache2 restart
 
+wget -O data/country_osm_grid.sql.gz http://www.nominatim.org/data/country_grid.sql.gz
 
 mkdir build
 cd build
@@ -58,3 +59,4 @@ tee settings/local.php << EOF
  @define('CONST_Database_DSN', 'pgsql://@/test_api_nominatim');
  @define('CONST_Wikipedia_Data_Path', CONST_BasePath.'/test/testdb');
 EOF
+

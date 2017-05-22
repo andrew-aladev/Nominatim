@@ -27,9 +27,10 @@ If you want to run the test suite, you need to install the following
 additional packages:
 
     sudo yum install -y python-pip python-Levenshtein python-psycopg2 \
-                        php-phpunit-PHPUnit
+                        python-numpy php-phpunit-PHPUnit
     pip install --user --upgrade pip setuptools lettuce==0.2.18 six==1.9 \
                                  haversine Shapely pytidylib
+    sudo pear install PHP_CodeSniffer
 
 
 System Configuration
@@ -102,6 +103,7 @@ sudo tee /etc/httpd/conf.d/nominatim.conf << EOFAPACHECONF
 <Directory "$USERHOME/Nominatim/build/website">
   Options FollowSymLinks MultiViews
   AddType text/html   .php
+  DirectoryIndex search.php
   Require all granted
 </Directory>
 
@@ -141,11 +143,18 @@ Get the source code from Github and change into the source directory
 
 
     cd $USERHOME
-    git clone --recursive git://github.com/twain47/Nominatim.git
+    git clone --recursive git://github.com/openstreetmap/Nominatim.git
     cd Nominatim
 
 
 
+
+
+When installing the latest source from github, you also need to
+download the country grid:
+
+
+    wget -O data/country_osm_grid.sql.gz http://www.nominatim.org/data/country_grid.sql.gz
 
 
 The code must be built in a separate directory. Create this directory,

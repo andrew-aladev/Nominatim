@@ -2,6 +2,7 @@
 
 namespace Nominatim;
 
+require_once(CONST_BasePath.'/lib/NearPoint.php');
 require_once(CONST_BasePath.'/lib/PlaceLookup.php');
 require_once(CONST_BasePath.'/lib/ReverseGeocode.php');
 
@@ -32,7 +33,6 @@ class Geocode
     protected $bFallback = false;
 
     protected $aCountryCodes = false;
-    protected $aNearPoint = false;
 
     protected $bBoundedSearch = false;
     protected $aViewBox = false;
@@ -67,19 +67,45 @@ class Geocode
         $this->aLangPrefOrder = $aLangPref;
     }
 
-    public function getIncludeAddressDetails()
+    public function getMoreUrlParams()
     {
-        return $this->bIncludeAddressDetails;
-    }
+        if ($this->aStructuredQuery) {
+            $aParams = $this->aStructuredQuery;
+        } else {
+            $aParams = array('q' => $this->sQuery);
+        }
 
-    public function getIncludeExtraTags()
-    {
-        return $this->bIncludeExtraTags;
-    }
+        if ($this->aExcludePlaceIDs) {
+            $aParams['exclude_place_ids'] = implode(',', $this->aExcludePlaceIDs);
+        }
 
-    public function getIncludeNameDetails()
-    {
-        return $this->bIncludeNameDetails;
+        if ($this->bIncludeAddressDetails) $aParams['addressdetails'] = '1';
+        if ($this->bIncludeExtraTags) $aParams['extratags'] = '1';
+        if ($this->bIncludeNameDetails) $aParams['namedetails'] = '1';
+
+        if ($this->bIncludePolygonAsPoints) $aParams['polygon'] = '1';
+        if ($this->bIncludePolygonAsText) $aParams['polygon_text'] = '1';
+        if ($this->bIncludePolygonAsGeoJSON) $aParams['polygon_geojson'] = '1';
+        if ($this->bIncludePolygonAsKML) $aParams['polygon_kml'] = '1';
+        if ($this->bIncludePolygonAsSVG) $aParams['polygon_svg'] = '1';
+
+        if ($this->fPolygonSimplificationThreshold > 0.0) {
+            $aParams['polygon_threshold'] = $this->fPolygonSimplificationThreshold;
+        }
+
+        if ($this->bBoundedSearch) $aParams['bounded'] = '1';
+        if (!$this->bDeDupe) $aParams['dedupe'] = '0';
+
+        if ($this->aCountryCodes) {
+            $aParams['countrycodes'] = implode(',', $this->aCountryCodes);
+        }
+
+        if ($this->aViewBox) {
+            $aParams['viewbox'] = $this->aViewBox[0].','.$this->aViewBox[3]
+                                  .','.$this->aViewBox[2].','.$this->aViewBox[1];
+        }
+
+        return $aParams;
     }
 
     public function setIncludePolygonAsPoints($b = true)
@@ -119,23 +145,6 @@ class Geocode
 
         $this->iFinalLimit = $iLimit;
         $this->iLimit = $iLimit + min($iLimit, 10);
-    }
-
-    public function getExcludedPlaceIDs()
-    {
-        return $this->aExcludePlaceIDs;
-    }
-
-
-    public function getCountryCodes()
-    {
-        return $this->aCountryCodes;
-    }
-
-    public function getViewBoxString()
-    {
-        if (!$this->aViewBox) return null;
-        return $this->aViewBox[0].','.$this->aViewBox[3].','.$this->aViewBox[2].','.$this->aViewBox[1];
     }
 
     public function setFeatureType($sFeatureType)
@@ -219,11 +228,6 @@ class Geocode
             $aBigViewBox[2],
             $aBigViewBox[3]
         );
-    }
-
-    public function setNearPoint($aNearPoint, $fRadiusDeg = 0.1)
-    {
-        $this->aNearPoint = array((float)$aNearPoint[0], (float)$aNearPoint[1], (float)$fRadiusDeg);
     }
 
     public function setQuery($sQueryString)
@@ -346,7 +350,7 @@ class Geocode
         return true;
     }
 
-    public function setStructuredQuery($sAmentiy = false, $sStreet = false, $sCity = false, $sCounty = false, $sState = false, $sCountry = false, $sPostalCode = false)
+    public function setStructuredQuery($sAmenity = false, $sStreet = false, $sCity = false, $sCounty = false, $sState = false, $sCountry = false, $sPostalCode = false)
     {
         $this->sQuery = false;
 
@@ -358,7 +362,7 @@ class Geocode
         $this->aStructuredQuery = array();
         $this->sAllowedTypesSQLList = '';
 
-        $this->loadStructuredAddressElement($sAmentiy, 'amenity', 26, 30, false);
+        $this->loadStructuredAddressElement($sAmenity, 'amenity', 26, 30, false);
         $this->loadStructuredAddressElement($sStreet, 'street', 26, 30, false);
         $this->loadStructuredAddressElement($sCity, 'city', 14, 24, false);
         $this->loadStructuredAddressElement($sCounty, 'county', 9, 13, false);
@@ -419,7 +423,7 @@ class Geocode
         $sSQL .= "    rank_address,";
         $sSQL .= "    min(place_id) AS place_id, ";
         $sSQL .= "    min(parent_place_id) AS parent_place_id, ";
-        $sSQL .= "    calculated_country_code AS country_code, ";
+        $sSQL .= "    country_code, ";
         $sSQL .= "    get_address_by_language(place_id, -1, $sLanguagePrefArraySQL) AS langaddress,";
         $sSQL .= "    get_name_by_language(name, $sLanguagePrefArraySQL) AS placename,";
         $sSQL .= "    get_name_by_language(name, ARRAY['ref']) AS ref,";
@@ -462,7 +466,7 @@ class Geocode
         $sSQL .= "     admin_level, ";
         $sSQL .= "     rank_search, ";
         $sSQL .= "     rank_address, ";
-        $sSQL .= "     calculated_country_code, ";
+        $sSQL .= "     country_code, ";
         $sSQL .= "     importance, ";
         if (!$this->bDeDupe) $sSQL .= "place_id,";
         $sSQL .= "     langaddress, ";
@@ -547,7 +551,7 @@ class Geocode
             $sSQL .= "  30 AS rank_address, ";
             $sSQL .= "  min(place_id) as place_id, ";
             $sSQL .= "  min(parent_place_id) AS parent_place_id, ";
-            $sSQL .= "  calculated_country_code AS country_code, ";
+            $sSQL .= "  country_code, ";
             $sSQL .= "  get_address_by_language(place_id, housenumber_for_place, $sLanguagePrefArraySQL) AS langaddress, ";
             $sSQL .= "  null AS placename, ";
             $sSQL .= "  null AS ref, ";
@@ -572,7 +576,7 @@ class Geocode
             $sSQL .= "     SELECT ";
             $sSQL .= "         osm_id, ";
             $sSQL .= "         place_id, ";
-            $sSQL .= "         calculated_country_code, ";
+            $sSQL .= "         country_code, ";
             $sSQL .= "         CASE ";             // interpolate the housenumbers here
             $sSQL .= "           WHEN startnumber != endnumber ";
             $sSQL .= "           THEN ST_LineInterpolatePoint(linegeo, (housenumber_for_place-startnumber::float)/(endnumber-startnumber)::float) ";
@@ -591,7 +595,7 @@ class Geocode
             $sSQL .= "    osm_id, ";
             $sSQL .= "    place_id, ";
             $sSQL .= "    housenumber_for_place, ";
-            $sSQL .= "    calculated_country_code "; //is this group by really needed?, place_id + housenumber (in combination) are unique
+            $sSQL .= "    country_code "; //is this group by really needed?, place_id + housenumber (in combination) are unique
             if (!$this->bDeDupe) $sSQL .= ", place_id ";
 
             if (CONST_Use_Aux_Location_data) {
@@ -698,10 +702,12 @@ class Geocode
                                         if ($aSearch['iSearchRank'] < $this->iMaxRank) $aNewWordsetSearches[] = $aSearch;
                                     }
                                 } elseif (isset($aSearchTerm['lat']) && $aSearchTerm['lat'] !== '' && $aSearchTerm['lat'] !== null) {
-                                    if ($aSearch['fLat'] === '') {
-                                        $aSearch['fLat'] = $aSearchTerm['lat'];
-                                        $aSearch['fLon'] = $aSearchTerm['lon'];
-                                        $aSearch['fRadius'] = $aSearchTerm['radius'];
+                                    if ($aSearch['oNear'] === false) {
+                                        $aSearch['oNear'] = new NearPoint(
+                                            $aSearchTerm['lat'],
+                                            $aSearchTerm['lon'],
+                                            $aSearchTerm['radius']
+                                        );
                                         if ($aSearch['iSearchRank'] < $this->iMaxRank) $aNewWordsetSearches[] = $aSearch;
                                     }
                                 } elseif ($sPhraseType == 'postalcode') {
@@ -905,7 +911,7 @@ class Geocode
 
     public function lookup()
     {
-        if (!$this->sQuery && !$this->aStructuredQuery) return false;
+        if (!$this->sQuery && !$this->aStructuredQuery) return array();
 
         $sLanguagePrefArraySQL = "ARRAY[".join(',', array_map("getDBQuoted", $this->aLangPrefOrder))."]";
         $sCountryCodesSQL = false;
@@ -942,8 +948,9 @@ class Geocode
         }
 
         // Do we have anything that looks like a lat/lon pair?
-        if ($aLooksLike = looksLikeLatLonPair($sQuery)) {
-            $this->setNearPoint(array($aLooksLike['lat'], $aLooksLike['lon']));
+        $oNearPoint = false;
+        if ($aLooksLike = NearPoint::extractFromQuery($sQuery)) {
+            $oNearPoint = $aLooksLike['pt'];
             $sQuery = $aLooksLike['query'];
         }
 
@@ -965,20 +972,9 @@ class Geocode
                            'sClass' => '',
                            'sType' => '',
                            'sHouseNumber' => '',
-                           'fLat' => '',
-                           'fLon' => '',
-                           'fRadius' => ''
+                           'oNear' => $oNearPoint
                           )
                          );
-
-            // Do we have a radius search?
-            $sNearPointSQL = false;
-            if ($this->aNearPoint) {
-                $sNearPointSQL = "ST_SetSRID(ST_Point(".(float)$this->aNearPoint[1].",".(float)$this->aNearPoint[0]."),4326)";
-                $aSearches[0]['fLat'] = (float)$this->aNearPoint[0];
-                $aSearches[0]['fLon'] = (float)$this->aNearPoint[1];
-                $aSearches[0]['fRadius'] = (float)$this->aNearPoint[2];
-            }
 
             // Any 'special' terms in the search?
             $bSpecialTerms = false;
@@ -1239,12 +1235,12 @@ class Geocode
                     if (CONST_Debug) _debugDumpGroupedSearches(array($iGroupedRank => array($aSearch)), $aValidTokens);
 
                     // No location term?
-                    if (!sizeof($aSearch['aName']) && !sizeof($aSearch['aAddress']) && !$aSearch['fLon']) {
+                    if (!sizeof($aSearch['aName']) && !sizeof($aSearch['aAddress']) && !$aSearch['oNear']) {
                         if ($aSearch['sCountryCode'] && !$aSearch['sClass'] && !$aSearch['sHouseNumber']) {
                             // Just looking for a country by code - look it up
                             if (4 >= $this->iMinAddressRank && 4 <= $this->iMaxAddressRank) {
-                                $sSQL = "SELECT place_id FROM placex WHERE calculated_country_code='".$aSearch['sCountryCode']."' AND rank_search = 4";
-                                if ($sCountryCodesSQL) $sSQL .= " AND calculated_country_code in ($sCountryCodesSQL)";
+                                $sSQL = "SELECT place_id FROM placex WHERE country_code='".$aSearch['sCountryCode']."' AND rank_search = 4";
+                                if ($sCountryCodesSQL) $sSQL .= " AND country_code in ($sCountryCodesSQL)";
                                 if ($bBoundingBoxSearch)
                                     $sSQL .= " AND _st_intersects($this->sViewboxSmallSQL, geometry)";
                                 $sSQL .= " ORDER BY st_area(geometry) DESC LIMIT 1";
@@ -1254,7 +1250,7 @@ class Geocode
                                 $aPlaceIDs = array();
                             }
                         } else {
-                            if (!$bBoundingBoxSearch && !$aSearch['fLon']) continue;
+                            if (!$bBoundingBoxSearch && !$aSearch['oNear']) continue;
                             if (!$aSearch['sClass']) continue;
 
                             $sSQL = "SELECT COUNT(*) FROM pg_tables WHERE tablename = 'place_classtype_".$aSearch['sClass']."_".$aSearch['sType']."'";
@@ -1262,7 +1258,7 @@ class Geocode
                                 $sSQL = "SELECT place_id FROM place_classtype_".$aSearch['sClass']."_".$aSearch['sType']." ct";
                                 if ($sCountryCodesSQL) $sSQL .= " JOIN placex USING (place_id)";
                                 $sSQL .= " WHERE st_contains($this->sViewboxSmallSQL, ct.centroid)";
-                                if ($sCountryCodesSQL) $sSQL .= " AND calculated_country_code in ($sCountryCodesSQL)";
+                                if ($sCountryCodesSQL) $sSQL .= " AND country_code in ($sCountryCodesSQL)";
                                 if (sizeof($this->aExcludePlaceIDs)) {
                                     $sSQL .= " AND place_id not in (".join(',', $this->aExcludePlaceIDs).")";
                                 }
@@ -1279,7 +1275,7 @@ class Geocode
                                     $sSQL = "SELECT place_id FROM place_classtype_".$aSearch['sClass']."_".$aSearch['sType']." ct";
                                     if ($sCountryCodesSQL) $sSQL .= " join placex using (place_id)";
                                     $sSQL .= " WHERE ST_Contains($this->sViewboxLargeSQL, ct.centroid)";
-                                    if ($sCountryCodesSQL) $sSQL .= " AND calculated_country_code in ($sCountryCodesSQL)";
+                                    if ($sCountryCodesSQL) $sSQL .= " AND country_code in ($sCountryCodesSQL)";
                                     if ($this->sViewboxCentreSQL) $sSQL .= " ORDER BY ST_Distance($this->sViewboxCentreSQL, ct.centroid) ASC";
                                     $sSQL .= " LIMIT $this->iLimit";
                                     if (CONST_Debug) var_dump($sSQL);
@@ -1292,14 +1288,14 @@ class Geocode
                                 $sSQL .= "  AND type='".$aSearch['sType']."'";
                                 $sSQL .= "  AND ST_Contains($this->sViewboxSmallSQL, geometry) ";
                                 $sSQL .= "  AND linked_place_id is null";
-                                if ($sCountryCodesSQL) $sSQL .= " AND calculated_country_code in ($sCountryCodesSQL)";
+                                if ($sCountryCodesSQL) $sSQL .= " AND country_code in ($sCountryCodesSQL)";
                                 if ($this->sViewboxCentreSQL)   $sSQL .= " ORDER BY ST_Distance($this->sViewboxCentreSQL, centroid) ASC";
                                 $sSQL .= " LIMIT $this->iLimit";
                                 if (CONST_Debug) var_dump($sSQL);
                                 $aPlaceIDs = chksql($this->oDB->getCol($sSQL));
                             }
                         }
-                    } elseif ($aSearch['fLon'] && !sizeof($aSearch['aName']) && !sizeof($aSearch['aAddress']) && !$aSearch['sClass']) {
+                    } elseif ($aSearch['oNear'] && !sizeof($aSearch['aName']) && !sizeof($aSearch['aAddress']) && !$aSearch['sClass']) {
                         // If a coordinate is given, the search must either
                         // be for a name or a special search. Ignore everythin else.
                         $aPlaceIDs = array();
@@ -1326,6 +1322,7 @@ class Geocode
                             $aOrder[0] .= "     SELECT place_id ";
                             $aOrder[0] .= "     FROM location_property_osmline ";
                             $aOrder[0] .= "     WHERE parent_place_id = search_name.place_id";
+                            $aOrder[0] .= "       AND startnumber is not NULL";
                             $aOrder[0] .= "       AND ".intval($aSearch['sHouseNumber']).">=startnumber ";
                             $aOrder[0] .= "       AND ".intval($aSearch['sHouseNumber'])."<=endnumber ";
                             $aOrder[0] .= "     LIMIT 1";
@@ -1363,15 +1360,10 @@ class Geocode
                                 $aTerms[] = "address_rank <= ".$this->iMaxAddressRank;
                             }
                         }
-                        if ($aSearch['fLon'] && $aSearch['fLat']) {
-                            $aTerms[] = sprintf(
-                                'ST_DWithin(centroid, ST_SetSRID(ST_Point(%F,%F),4326), %F)',
-                                $aSearch['fLon'],
-                                $aSearch['fLat'],
-                                $aSearch['fRadius']
-                            );
+                        if ($aSearch['oNear']) {
+                            $aTerms[] = $aSearch['oNear']->withinSQL('centroid');
 
-                            $aOrder[] = "ST_Distance(centroid, ST_SetSRID(ST_Point(".$aSearch['fLon'].",".$aSearch['fLat']."),4326)) ASC";
+                            $aOrder[] = $aSearch['oNear']->distanceSQL('centroid');
                         }
                         if (sizeof($this->aExcludePlaceIDs)) {
                             $aTerms[] = "place_id not in (".join(',', $this->aExcludePlaceIDs).")";
@@ -1381,7 +1373,9 @@ class Geocode
                         }
 
                         if ($bBoundingBoxSearch) $aTerms[] = "centroid && $this->sViewboxSmallSQL";
-                        if ($sNearPointSQL) $aOrder[] = "ST_Distance($sNearPointSQL, centroid) ASC";
+                        if ($oNearPoint) {
+                            $aOrder[] = $oNearPoint->distanceSQL('centroid');
+                        }
 
                         if ($aSearch['sHouseNumber']) {
                             $sImportanceSQL = '- abs(26 - address_rank) + 3';
@@ -1462,7 +1456,7 @@ class Geocode
                                 // do we need to use transliteration and the regex for housenumbers???
                                 //new query for lines, not housenumbers anymore
                                 $sSQL = "SELECT distinct place_id FROM location_property_osmline";
-                                $sSQL .= " WHERE parent_place_id in (".$sPlaceIDs.") and (";
+                                $sSQL .= " WHERE startnumber is not NULL and parent_place_id in (".$sPlaceIDs.") and (";
                                 if ($searchedHousenumber%2 == 0) {
                                     //if housenumber is even, look for housenumber in streets with interpolationtype even or all
                                     $sSQL .= "interpolationtype='even'";
@@ -1540,7 +1534,7 @@ class Geocode
                                 $sSQL .= "   AND class='".$aSearch['sClass']."' ";
                                 $sSQL .= "   AND type='".$aSearch['sType']."'";
                                 $sSQL .= "   AND linked_place_id is null";
-                                if ($sCountryCodesSQL) $sSQL .= " AND calculated_country_code in ($sCountryCodesSQL)";
+                                if ($sCountryCodesSQL) $sSQL .= " AND country_code in ($sCountryCodesSQL)";
                                 $sSQL .= " ORDER BY rank_search ASC ";
                                 $sSQL .= " LIMIT $this->iLimit";
                                 if (CONST_Debug) var_dump($sSQL);
@@ -1589,9 +1583,13 @@ class Geocode
                                         $fRange = 0.05;
 
                                         $sOrderBySQL = '';
-                                        if ($sNearPointSQL) $sOrderBySQL = "ST_Distance($sNearPointSQL, l.centroid)";
-                                        elseif ($sPlaceIDs) $sOrderBySQL = "ST_Distance(l.centroid, f.geometry)";
-                                        elseif ($sPlaceGeom) $sOrderBysSQL = "ST_Distance(st_centroid('".$sPlaceGeom."'), l.centroid)";
+                                        if ($oNearPoint) {
+                                            $sOrderBySQL = $oNearPoint->distanceSQL('l.centroid');
+                                        } elseif ($sPlaceIDs) {
+                                            $sOrderBySQL = "ST_Distance(l.centroid, f.geometry)";
+                                        } elseif ($sPlaceGeom) {
+                                            $sOrderBysSQL = "ST_Distance(st_centroid('".$sPlaceGeom."'), l.centroid)";
+                                        }
 
                                         $sSQL = "select distinct l.place_id".($sOrderBySQL?','.$sOrderBySQL:'')." from place_classtype_".$aSearch['sClass']."_".$aSearch['sType']." as l";
                                         if ($sCountryCodesSQL) $sSQL .= " join placex as lp using (place_id)";
@@ -1606,18 +1604,23 @@ class Geocode
                                         if (sizeof($this->aExcludePlaceIDs)) {
                                             $sSQL .= " and l.place_id not in (".join(',', $this->aExcludePlaceIDs).")";
                                         }
-                                        if ($sCountryCodesSQL) $sSQL .= " and lp.calculated_country_code in ($sCountryCodesSQL)";
+                                        if ($sCountryCodesSQL) $sSQL .= " and lp.country_code in ($sCountryCodesSQL)";
                                         if ($sOrderBySQL) $sSQL .= "order by ".$sOrderBySQL." asc";
                                         if ($this->iOffset) $sSQL .= " offset $this->iOffset";
                                         $sSQL .= " limit $this->iLimit";
                                         if (CONST_Debug) var_dump($sSQL);
                                         $aClassPlaceIDs = array_merge($aClassPlaceIDs, chksql($this->oDB->getCol($sSQL)));
                                     } else {
-                                        if (isset($aSearch['fRadius']) && $aSearch['fRadius']) $fRange = $aSearch['fRadius'];
+                                        if ($aSearch['oNear']) {
+                                            $fRange = $aSearch['oNear']->radius();
+                                        }
 
                                         $sOrderBySQL = '';
-                                        if ($sNearPointSQL) $sOrderBySQL = "ST_Distance($sNearPointSQL, l.geometry)";
-                                        else $sOrderBySQL = "ST_Distance(l.geometry, f.geometry)";
+                                        if ($oNearPoint) {
+                                            $sOrderBySQL = $oNearPoint->distanceSQL('l.geometry');
+                                        } else {
+                                            $sOrderBySQL = "ST_Distance(l.geometry, f.geometry)";
+                                        }
 
                                         $sSQL = "SELECT distinct l.place_id".($sOrderBysSQL?','.$sOrderBysSQL:'');
                                         $sSQL .= " FROM placex as l, placex as f ";
@@ -1628,7 +1631,7 @@ class Geocode
                                         if (sizeof($this->aExcludePlaceIDs)) {
                                             $sSQL .= " AND l.place_id not in (".join(',', $this->aExcludePlaceIDs).")";
                                         }
-                                        if ($sCountryCodesSQL) $sSQL .= " AND l.calculated_country_code in ($sCountryCodesSQL)";
+                                        if ($sCountryCodesSQL) $sSQL .= " AND l.country_code in ($sCountryCodesSQL)";
                                         if ($sOrderBy) $sSQL .= "ORDER BY ".$OrderBysSQL." ASC";
                                         if ($this->iOffset) $sSQL .= " OFFSET $this->iOffset";
                                         $sSQL .= " limit $this->iLimit";
@@ -1681,7 +1684,7 @@ class Geocode
                     $sSQL .= "  SELECT place_id ";
                     $sSQL .= "  FROM location_property_osmline ";
                     $sSQL .= "  WHERE place_id in (".join(',', array_keys($aResultPlaceIDs)).")";
-                    $sSQL .= "    AND (30 between $this->iMinAddressRank and $this->iMaxAddressRank)";
+                    $sSQL .= "    AND startnumber is not NULL AND (30 between $this->iMinAddressRank and $this->iMaxAddressRank)";
                     if (CONST_Debug) var_dump($sSQL);
                     $aFilteredPlaceIDs = chksql($this->oDB->getCol($sSQL));
                     $tempIDs = array();
@@ -1707,8 +1710,8 @@ class Geocode
             $oReverse->setZoom(18);
 
             $aLookup = $oReverse->lookup(
-                (float)$this->aNearPoint[0],
-                (float)$this->aNearPoint[1],
+                $oNearPoint->lat(),
+                $oNearPoint->lon(),
                 false
             );
 
@@ -1736,7 +1739,7 @@ class Geocode
         $aClassType = getClassTypesWithImportance();
         $aRecheckWords = preg_split('/\b[\s,\\-]*/u', $sQuery);
         foreach ($aRecheckWords as $i => $sWord) {
-            if (!preg_match('/\pL/', $sWord)) unset($aRecheckWords[$i]);
+            if (!preg_match('/[\pL\pN]/', $sWord)) unset($aRecheckWords[$i]);
         }
 
         if (CONST_Debug) {

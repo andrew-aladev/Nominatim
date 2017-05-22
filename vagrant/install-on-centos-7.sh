@@ -144,11 +144,18 @@ sudo sed -i 's:#.*::' /etc/httpd/conf.d/nominatim.conf #DOCS:
 if [ "x$1" == "xyes" ]; then  #DOCS:
 
     cd $USERHOME
-    git clone --recursive git://github.com/twain47/Nominatim.git
+    git clone --recursive git://github.com/openstreetmap/Nominatim.git
 #DOCS:    cd Nominatim
 
 else                               #DOCS:
     cd $USERHOME                   #DOCS:
+fi                                 #DOCS:
+
+# When installing the latest source from github, you also need to
+# download the country grid:
+
+if [ ! -f data/country_osm_grid.sql.gz ]; then       #DOCS:
+    wget -O data/country_osm_grid.sql.gz http://www.nominatim.org/data/country_grid.sql.gz
 fi                                 #DOCS:
 
 # The code must be built in a separate directory. Create this directory,

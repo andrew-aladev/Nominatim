@@ -8,7 +8,7 @@ import psycopg2.extras
 class PlaceColumn:
 
     def __init__(self, context, force_name):
-        self.columns = { 'admin_level' : 100}
+        self.columns = { 'admin_level' : 15}
         self.force_name = force_name
         self.context = context
         self.geometry = None
@@ -20,9 +20,10 @@ class PlaceColumn:
             self.add_hstore('name', key[5:], value)
         elif key.startswith('extra+'):
             self.add_hstore('extratags', key[6:], value)
+        elif key.startswith('addr+'):
+            self.add_hstore('address', key[5:], value)
         else:
-            assert_in(key, ('class', 'type', 'street', 'addr_place',
-                            'isin', 'postcode'))
+            assert_in(key, ('class', 'type'))
             self.columns[key] = None if value == '' else value
 
     def set_key_name(self, value):
@@ -39,10 +40,24 @@ class PlaceColumn:
         self.columns['admin_level'] = int(value)
 
     def set_key_housenr(self, value):
-        self.columns['housenumber'] = None if value == '' else value
+        if value:
+            self.add_hstore('address', 'housenumber', value)
+
+    def set_key_postcode(self, value):
+        if value:
+            self.add_hstore('address', 'postcode', value)
+
+    def set_key_street(self, value):
+        if value:
+            self.add_hstore('address', 'street', value)
+
+    def set_key_addr_place(self, value):
+        if value:
+            self.add_hstore('address', 'place', value)
 
     def set_key_country(self, value):
-        self.columns['country_code'] = None if value == '' else value
+        if value:
+            self.add_hstore('address', 'country', value)
 
     def set_key_geometry(self, value):
         self.geometry = self.context.osm.parse_geometry(value, self.context.scene)
@@ -61,8 +76,11 @@ class PlaceColumn:
                                            for _ in range(int(random.random()*30))))
 
         if self.columns['osm_type'] == 'N' and self.geometry is None:
-            self.geometry = "ST_SetSRID(ST_Point(%f, %f), 4326)" % (
-                            random.random()*360 - 180, random.random()*180 - 90)
+            pt = self.context.osm.grid_node(self.columns['osm_id'])
+            if pt is None:
+                pt = (random.random()*360 - 180, random.random()*180 - 90)
+
+            self.geometry = "ST_SetSRID(ST_Point(%f, %f), 4326)" % pt
         else:
             assert_is_not_none(self.geometry, "Geometry missing")
         query = 'INSERT INTO place (%s, geometry) values(%s, %s)' % (
@@ -70,6 +88,47 @@ class PlaceColumn:
                      ','.join(['%s' for x in range(len(self.columns))]),
                      self.geometry)
         cursor.execute(query, list(self.columns.values()))
+
+class LazyFmt(object):
+
+    def __init__(self, fmtstr, *args):
+        self.fmt = fmtstr
+        self.args = args
+
+    def __str__(self):
+        return self.fmt % self.args
+
+class PlaceObjName(object):
+
+    def __init__(self, placeid, conn):
+        self.pid = placeid
+        self.conn = conn
+
+    def __str__(self):
+        if self.pid is None:
+            return "<null>"
+
+        cur = self.conn.cursor()
+        cur.execute("""SELECT osm_type, osm_id, class
+                       FROM placex WHERE place_id = %s""",
+                    (self.pid, ))
+        eq_(1, cur.rowcount, "No entry found for place id %s" % self.pid)
+
+        return "%s%s:%s" % cur.fetchone()
+
+def compare_place_id(expected, result, column, context):
+    if expected == '0':
+        eq_(0, result,
+            LazyFmt("Bad place id in column %s. Expected: 0, got: %s.",
+                    column, PlaceObjName(result, context.db)))
+    elif expected == '-':
+        assert_is_none(result,
+                LazyFmt("bad place id in column %s: %s.",
+                        column, PlaceObjName(result, context.db)))
+    else:
+        eq_(NominatimID(expected).get_place_id(context.db.cursor()), result,
+            LazyFmt("Bad place id in column %s. Expected: %s, got: %s.",
+                    column, expected, PlaceObjName(result, context.db)))
 
 class NominatimID:
     """ Splits a unique identifier for places into its components.
@@ -90,6 +149,12 @@ class NominatimID:
             self.oid = m.group('id')
             self.cls = m.group('cls')
 
+    def __str__(self):
+        if self.cls is None:
+            return self.typ + self.oid
+
+        return '%s%d:%s' % (self.typ, self.oid, self.cls)
+
     def table_select(self):
         """ Return where clause and parameter list to select the object
             from a Nominatim table.
@@ -106,7 +171,9 @@ class NominatimID:
     def get_place_id(self, cur):
         where, params = self.table_select()
         cur.execute("SELECT place_id FROM placex WHERE %s" % where, params)
-        eq_(1, cur.rowcount, "Expected exactly 1 entry in placex found %s" % cur.rowcount)
+        eq_(1, cur.rowcount,
+            "Expected exactly 1 entry in placex for %s found %s"
+              % (str(self), cur.rowcount))
 
         return cur.fetchone()[0]
 
@@ -211,14 +278,14 @@ def import_and_index_data_from_place_table(context):
     context.nominatim.run_setup_script('create-functions', 'create-partition-functions')
     cur = context.db.cursor()
     cur.execute(
-        """insert into placex (osm_type, osm_id, class, type, name, admin_level,
-           housenumber, street, addr_place, isin, postcode, country_code, extratags,
-           geometry)
-           select * from place where not (class='place' and type='houses' and osm_type='W')""")
+        """insert into placex (osm_type, osm_id, class, type, name, admin_level, address, extratags, geometry)
+           select              osm_type, osm_id, class, type, name, admin_level, address, extratags, geometry
+           from place where not (class='place' and type='houses' and osm_type='W')""")
     cur.execute(
-        """select insert_osmline (osm_id, housenumber, street, addr_place,
-           postcode, country_code, geometry)
-           from place where class='place' and type='houses' and osm_type='W'""")
+            """insert into location_property_osmline (osm_id, address, linegeo)
+             SELECT osm_id, address, geometry from place
+              WHERE class='place' and type='houses' and osm_type='W'
+                    and ST_GeometryType(geometry) = 'ST_LineString'""")
     context.db.commit()
     context.nominatim.run_setup_script('index', 'index-noanalyse')
 
@@ -236,7 +303,14 @@ def update_place_table(context):
         col.db_insert(cur)
 
     context.db.commit()
-    context.nominatim.run_update_script('index')
+
+    while True:
+        context.nominatim.run_update_script('index')
+
+        cur = context.db.cursor()
+        cur.execute("SELECT 'a' FROM placex WHERE indexed_status != 0 LIMIT 1")
+        if cur.rowcount == 0:
+            break
 
 @when("marking for delete (?P<oids>.*)")
 def delete_places(context, oids):
@@ -247,7 +321,14 @@ def delete_places(context, oids):
         where, params = NominatimID(oid).table_select()
         cur.execute("DELETE FROM place WHERE " + where, params)
     context.db.commit()
-    context.nominatim.run_update_script('index')
+
+    while True:
+        context.nominatim.run_update_script('index')
+
+        cur = context.db.cursor()
+        cur.execute("SELECT 'a' FROM placex WHERE indexed_status != 0 LIMIT 1")
+        if cur.rowcount == 0:
+            break
 
 @then("placex contains(?P<exact> exactly)?")
 def check_placex_contents(context, exact):
@@ -273,14 +354,16 @@ def check_placex_contents(context, exact):
                     eq_(res['name'][name], row[h])
                 elif h.startswith('extratags+'):
                     eq_(res['extratags'][h[10:]], row[h])
-                elif h in ('linked_place_id', 'parent_place_id'):
-                    if row[h] == '0':
-                        eq_(0, res[h])
-                    elif row[h] == '-':
-                        assert_is_none(res[h])
+                elif h.startswith('addr+'):
+                    if row[h] == '-':
+                        if res['address'] is not None:
+                            assert_not_in(h[5:], res['address'])
                     else:
-                        eq_(NominatimID(row[h]).get_place_id(context.db.cursor()),
-                            res[h])
+                        assert_in(h[5:], res['address'], "column " + h)
+                        assert_equals(res['address'][h[5:]], row[h],
+                                      "column %s" % h)
+                elif h in ('linked_place_id', 'parent_place_id'):
+                    compare_place_id(row[h], res[h], h, context)
                 else:
                     assert_db_column(res, h, row[h], context)
 
@@ -309,7 +392,7 @@ def check_placex_contents(context, exact):
                 expected_content.add((res['osm_type'], res['osm_id'], res['class']))
             for h in row.headings:
                 msg = "%s: %s" % (row['object'], h)
-                if h in ('name', 'extratags'):
+                if h in ('name', 'extratags', 'address'):
                     if row[h] == '-':
                         assert_is_none(res[h], msg)
                     else:
@@ -319,14 +402,14 @@ def check_placex_contents(context, exact):
                     assert_equals(res['name'][h[5:]], row[h], msg)
                 elif h.startswith('extratags+'):
                     assert_equals(res['extratags'][h[10:]], row[h], msg)
-                elif h in ('linked_place_id', 'parent_place_id'):
-                    if row[h] == '0':
-                        assert_equals(0, res[h], msg)
-                    elif row[h] == '-':
-                        assert_is_none(res[h], msg)
+                elif h.startswith('addr+'):
+                    if row[h] == '-':
+                        if res['address']  is not None:
+                            assert_not_in(h[5:], res['address'])
                     else:
-                        assert_equals(NominatimID(row[h]).get_place_id(context.db.cursor()),
-                                      res[h], msg)
+                        assert_equals(res['address'][h[5:]], row[h], msg)
+                elif h in ('linked_place_id', 'parent_place_id'):
+                    compare_place_id(row[h], res[h], h, context)
                 else:
                     assert_db_column(res, h, row[h], context)
 
@@ -355,13 +438,35 @@ def check_search_name_contents(context):
                                       FROM word, (SELECT unnest(%s) as term) t
                                       WHERE word_token = make_standard_name(t.term)""",
                                    (terms,))
-                    ok_(subcur.rowcount >= len(terms))
+                    ok_(subcur.rowcount >= len(terms),
+                        "No word entry found for " + row[h])
                     for wid in subcur:
                         assert_in(wid[0], res[h],
                                   "Missing term for %s/%s: %s" % (pid, h, wid[1]))
                 else:
                     assert_db_column(res, h, row[h], context)
 
+
+    context.db.commit()
+
+@then("place_addressline contains")
+def check_place_addressline(context):
+    cur = context.db.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    for row in context.table:
+        pid = NominatimID(row['object']).get_place_id(cur)
+        apid = NominatimID(row['address']).get_place_id(cur)
+        cur.execute(""" SELECT * FROM place_addressline
+                        WHERE place_id = %s AND address_place_id = %s""",
+                    (pid, apid))
+        assert_less(0, cur.rowcount,
+                    "No rows found for place %s and address %s"
+                      % (row['object'], row['address']))
+
+        for res in cur:
+            for h in row.headings:
+                if h not in ('address', 'object'):
+                    assert_db_column(res, h, row[h], context)
 
     context.db.commit()
 
@@ -373,7 +478,8 @@ def check_location_property_osmline(context, oid, neg):
     eq_('W', nid.typ, "interpolation must be a way")
 
     cur.execute("""SELECT *, ST_AsText(linegeo) as geomtxt
-                   FROM location_property_osmline WHERE osm_id = %s""",
+                   FROM location_property_osmline
+                   WHERE osm_id = %s AND startnumber IS NOT NULL""",
                 (nid.oid, ))
 
     if neg:
@@ -395,13 +501,7 @@ def check_location_property_osmline(context, oid, neg):
             if h in ('start', 'end'):
                 continue
             elif h == 'parent_place_id':
-                if row[h] == '0':
-                    eq_(0, res[h])
-                elif row[h] == '-':
-                    assert_is_none(res[h])
-                else:
-                    eq_(NominatimID(row[h]).get_place_id(context.db.cursor()),
-                        res[h])
+                compare_place_id(row[h], res[h], h, context)
             else:
                 assert_db_column(res, h, row[h], context)
 

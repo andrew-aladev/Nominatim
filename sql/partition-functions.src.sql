@@ -1,4 +1,4 @@
-create or replace function getNearFeatures(in_partition INTEGER, point GEOMETRY, maxrank INTEGER, isin_tokens INT[]) RETURNS setof nearfeaturecentr AS $$
+create or replace function getNearFeatures(in_partition INTEGER, feature GEOMETRY, maxrank INTEGER, isin_tokens INT[]) RETURNS setof nearfeaturecentr AS $$
 DECLARE
   r nearfeaturecentr%rowtype;
 BEGIN
@@ -6,14 +6,14 @@ BEGIN
 -- start
   IF in_partition = -partition- THEN
     FOR r IN 
-      SELECT place_id, keywords, rank_address, rank_search, min(ST_Distance(point, centroid)) as distance, isguess, centroid FROM (
-        SELECT * FROM location_area_large_-partition- WHERE ST_Contains(geometry, point) and rank_search < maxrank
+      SELECT place_id, keywords, rank_address, rank_search, min(ST_Distance(feature, centroid)) as distance, isguess, centroid FROM (
+        SELECT * FROM location_area_large_-partition- WHERE ST_Intersects(geometry, feature) and rank_search < maxrank
         UNION ALL
-        SELECT * FROM location_area_country WHERE ST_Contains(geometry, point) and rank_search < maxrank
+        SELECT * FROM location_area_country WHERE ST_Intersects(geometry, feature) and rank_search < maxrank
       ) as location_area
       GROUP BY place_id, keywords, rank_address, rank_search, isguess, centroid
       ORDER BY rank_address, isin_tokens && keywords desc, isguess asc,
-        ST_Distance(point, centroid) * 
+        ST_Distance(feature, centroid) *
           CASE 
                WHEN rank_address = 16 AND rank_search = 15 THEN 0.2 -- capital city
                WHEN rank_address = 16 AND rank_search = 16 THEN 0.25 -- city
@@ -65,13 +65,15 @@ BEGIN
   END IF;
 
   IF in_rank_search <= 4 THEN
-    INSERT INTO location_area_country values (in_partition, in_place_id, in_country_code, in_keywords, in_rank_search, in_rank_address, in_estimate, in_centroid, in_geometry);
+    INSERT INTO location_area_country (partition, place_id, country_code, keywords, rank_search, rank_address, isguess, centroid, geometry)
+      values (in_partition, in_place_id, in_country_code, in_keywords, in_rank_search, in_rank_address, in_estimate, in_centroid, in_geometry);
     RETURN TRUE;
   END IF;
 
 -- start
   IF in_partition = -partition- THEN
-    INSERT INTO location_area_large_-partition- values (in_partition, in_place_id, in_country_code, in_keywords, in_rank_search, in_rank_address, in_estimate, in_centroid, in_geometry);
+    INSERT INTO location_area_large_-partition- (partition, place_id, country_code, keywords, rank_search, rank_address, isguess, centroid, geometry)
+      values (in_partition, in_place_id, in_country_code, in_keywords, in_rank_search, in_rank_address, in_estimate, in_centroid, in_geometry);
     RETURN TRUE;
   END IF;
 -- end
@@ -203,14 +205,14 @@ DECLARE
 BEGIN
 
   DELETE FROM search_name WHERE place_id = in_place_id;
-  INSERT INTO search_name values (in_place_id, in_rank_search, in_rank_address, in_importance, in_country_code, 
-    in_name_vector, in_nameaddress_vector, in_centroid);
+  INSERT INTO search_name (place_id, search_rank, address_rank, importance, country_code, name_vector, nameaddress_vector, centroid)
+    values (in_place_id, in_rank_search, in_rank_address, in_importance, in_country_code, in_name_vector, in_nameaddress_vector, in_centroid);
 
   IF in_rank_search <= 4 THEN
     DELETE FROM search_name_country WHERE place_id = in_place_id;
     IF in_rank_address > 0 THEN
-      INSERT INTO search_name_country values (in_place_id, in_rank_search, in_rank_address,
-        in_name_vector, in_geometry);
+      INSERT INTO search_name_country (place_id, search_rank, address_rank, name_vector, centroid)
+        values (in_place_id, in_rank_search, in_rank_address, in_name_vector, in_geometry);
     END IF;
     RETURN TRUE;
   END IF;
@@ -219,8 +221,8 @@ BEGIN
   IF in_partition = -partition- THEN
     DELETE FROM search_name_-partition- values WHERE place_id = in_place_id;
     IF in_rank_address > 0 THEN
-      INSERT INTO search_name_-partition- values (in_place_id, in_rank_search, in_rank_address,
-        in_name_vector, in_geometry);
+      INSERT INTO search_name_-partition- (place_id, search_rank, address_rank, name_vector, centroid)
+        values (in_place_id, in_rank_search, in_rank_address, in_name_vector, in_geometry);
     END IF;
     RETURN TRUE;
   END IF;
@@ -261,7 +263,8 @@ BEGIN
 -- start
   IF in_partition = -partition- THEN
     DELETE FROM location_road_-partition- where place_id = in_place_id;
-    INSERT INTO location_road_-partition- values (in_partition, in_place_id, in_country_code, in_geometry);
+    INSERT INTO location_road_-partition- (partition, place_id, country_code, geometry)
+      values (in_partition, in_place_id, in_country_code, in_geometry);
     RETURN TRUE;
   END IF;
 -- end
