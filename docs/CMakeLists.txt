@@ -27,6 +27,7 @@ set (
     GENERALDOCFILES
     "Installation.md"
     "Import_and_update.md"
+    "Faq.md"
 )
 
 foreach (df ${GENERALDOCFILES})

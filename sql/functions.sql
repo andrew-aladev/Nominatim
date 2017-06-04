@@ -1140,6 +1140,8 @@ DECLARE
   nameaddress_vector INTEGER[];
 
   linked_node_id BIGINT;
+  linked_importance FLOAT;
+  linked_wikipedia TEXT;
 
   result BOOLEAN;
 BEGIN
@@ -1489,7 +1491,7 @@ BEGIN
     IF relation_members IS NOT NULL THEN
       FOR relMember IN select get_osm_rel_members(relation_members,ARRAY['label']) as member LOOP
 
-        FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::char(1) 
+        FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::"char"
           and osm_id = substring(relMember.member,2,10000)::bigint order by rank_search desc limit 1 LOOP
 
           -- If we don't already have one use this as the centre point of the geometry
@@ -1511,6 +1513,7 @@ BEGIN
 
           -- keep a note of the node id in case we need it for wikipedia in a bit
           linked_node_id := linkedPlacex.osm_id;
+          select language||':'||title,importance from get_wikipedia_match(linkedPlacex.extratags, NEW.country_code) INTO linked_wikipedia,linked_importance;
         END LOOP;
 
       END LOOP;
@@ -1519,7 +1522,7 @@ BEGIN
 
         FOR relMember IN select get_osm_rel_members(relation_members,ARRAY['admin_center','admin_centre']) as member LOOP
 
-          FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::char(1) 
+          FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::"char"
             and osm_id = substring(relMember.member,2,10000)::bigint order by rank_search desc limit 1 LOOP
 
             -- For an admin centre we also want a name match - still not perfect, for example 'new york, new york'
@@ -1546,6 +1549,7 @@ BEGIN
 
               -- keep a note of the node id in case we need it for wikipedia in a bit
               linked_node_id := linkedPlacex.osm_id;
+              select language||':'||title,importance from get_wikipedia_match(linkedPlacex.extratags, NEW.country_code) INTO linked_wikipedia,linked_importance;
             END IF;
 
           END LOOP;
@@ -1567,7 +1571,7 @@ BEGIN
         make_standard_name(name->'name') = make_standard_name(NEW.name->'name')
         AND placex.rank_address = NEW.rank_address
         AND placex.place_id != NEW.place_id
-        AND placex.osm_type = 'N'::char(1) AND placex.rank_search < 26
+        AND placex.osm_type = 'N' AND placex.rank_search < 26
         AND st_covers(NEW.geometry, placex.geometry)
       LOOP
 
@@ -1588,6 +1592,7 @@ BEGIN
 
         -- keep a note of the node id in case we need it for wikipedia in a bit
         linked_node_id := linkedPlacex.osm_id;
+        select language||':'||title,importance from get_wikipedia_match(linkedPlacex.extratags, NEW.country_code) INTO linked_wikipedia,linked_importance;
       END LOOP;
     END IF;
 
@@ -1608,13 +1613,15 @@ BEGIN
       END IF;
     END IF;
 
-    -- Did we gain a wikipedia tag in the process? then we need to recalculate our importance
-    IF NEW.importance is null THEN
-      select language||':'||title,importance from get_wikipedia_match(NEW.extratags, NEW.country_code) INTO NEW.wikipedia,NEW.importance;
+    -- Use the maximum importance if a one could be computed from the linked object.
+    IF linked_importance is not null AND
+        (NEW.importance is null or NEW.importance < linked_importance) THEN
+        NEW.importance = linked_importance;
     END IF;
+
     -- Still null? how about looking it up by the node id
     IF NEW.importance IS NULL THEN
-      select language||':'||title,importance from wikipedia_article where osm_type = 'N'::char(1) and osm_id = linked_node_id order by importance desc limit 1 INTO NEW.wikipedia,NEW.importance;
+      select language||':'||title,importance from wikipedia_article where osm_type = 'N' and osm_id = linked_node_id order by importance desc limit 1 INTO NEW.wikipedia,NEW.importance;
     END IF;
 
   END IF;
