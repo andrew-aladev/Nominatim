@@ -101,7 +101,7 @@ END;
 $$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION getorcreate_amenity(lookup_word TEXT, lookup_class text, lookup_type text)
+CREATE OR REPLACE FUNCTION getorcreate_amenity(lookup_word TEXT, normalized_word TEXT, lookup_class text, lookup_type text)
   RETURNS INTEGER
   AS $$
 DECLARE
@@ -109,17 +109,17 @@ DECLARE
   return_word_id INTEGER;
 BEGIN
   lookup_token := ' '||trim(lookup_word);
-  SELECT min(word_id) FROM word WHERE word_token = lookup_token and class=lookup_class and type = lookup_type into return_word_id;
+  SELECT min(word_id) FROM word WHERE word_token = lookup_token and word=normalized_word and class=lookup_class and type = lookup_type into return_word_id;
   IF return_word_id IS NULL THEN
     return_word_id := nextval('seq_word');
-    INSERT INTO word VALUES (return_word_id, lookup_token, null, lookup_class, lookup_type, null, 0);
+    INSERT INTO word VALUES (return_word_id, lookup_token, normalized_word, lookup_class, lookup_type, null, 0);
   END IF;
   RETURN return_word_id;
 END;
 $$
 LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION getorcreate_amenityoperator(lookup_word TEXT, lookup_class text, lookup_type text, op text)
+CREATE OR REPLACE FUNCTION getorcreate_amenityoperator(lookup_word TEXT, normalized_word TEXT, lookup_class text, lookup_type text, op text)
   RETURNS INTEGER
   AS $$
 DECLARE
@@ -127,10 +127,10 @@ DECLARE
   return_word_id INTEGER;
 BEGIN
   lookup_token := ' '||trim(lookup_word);
-  SELECT min(word_id) FROM word WHERE word_token = lookup_token and class=lookup_class and type = lookup_type and operator = op into return_word_id;
+  SELECT min(word_id) FROM word WHERE word_token = lookup_token and word=normalized_word and class=lookup_class and type = lookup_type and operator = op into return_word_id;
   IF return_word_id IS NULL THEN
     return_word_id := nextval('seq_word');
-    INSERT INTO word VALUES (return_word_id, lookup_token, null, lookup_class, lookup_type, null, 0, op);
+    INSERT INTO word VALUES (return_word_id, lookup_token, normalized_word, lookup_class, lookup_type, null, 0, op);
   END IF;
   RETURN return_word_id;
 END;
@@ -1491,7 +1491,7 @@ BEGIN
     IF relation_members IS NOT NULL THEN
       FOR relMember IN select get_osm_rel_members(relation_members,ARRAY['label']) as member LOOP
 
-        FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::"char"
+        FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::char(1) 
           and osm_id = substring(relMember.member,2,10000)::bigint order by rank_search desc limit 1 LOOP
 
           -- If we don't already have one use this as the centre point of the geometry
@@ -1522,7 +1522,7 @@ BEGIN
 
         FOR relMember IN select get_osm_rel_members(relation_members,ARRAY['admin_center','admin_centre']) as member LOOP
 
-          FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::"char"
+          FOR linkedPlacex IN select * from placex where osm_type = upper(substring(relMember.member,1,1))::char(1) 
             and osm_id = substring(relMember.member,2,10000)::bigint order by rank_search desc limit 1 LOOP
 
             -- For an admin centre we also want a name match - still not perfect, for example 'new york, new york'
@@ -1571,7 +1571,7 @@ BEGIN
         make_standard_name(name->'name') = make_standard_name(NEW.name->'name')
         AND placex.rank_address = NEW.rank_address
         AND placex.place_id != NEW.place_id
-        AND placex.osm_type = 'N' AND placex.rank_search < 26
+        AND placex.osm_type = 'N'::char(1) AND placex.rank_search < 26
         AND st_covers(NEW.geometry, placex.geometry)
       LOOP
 
@@ -1621,7 +1621,7 @@ BEGIN
 
     -- Still null? how about looking it up by the node id
     IF NEW.importance IS NULL THEN
-      select language||':'||title,importance from wikipedia_article where osm_type = 'N' and osm_id = linked_node_id order by importance desc limit 1 INTO NEW.wikipedia,NEW.importance;
+      select language||':'||title,importance from wikipedia_article where osm_type = 'N'::char(1) and osm_id = linked_node_id order by importance desc limit 1 INTO NEW.wikipedia,NEW.importance;
     END IF;
 
   END IF;
