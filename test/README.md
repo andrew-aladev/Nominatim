@@ -24,6 +24,7 @@ tests for specific PHP functions.
 
 This test directory is sturctured as follows:
 
+```
  -+-   bdd         Functional API tests
   | \
   | +-  steps      Step implementations for test descriptions
@@ -34,7 +35,7 @@ This test directory is sturctured as follows:
   +-   php         PHP unit tests
   +-   scenes      Geometry test data
   +-   testdb      Base data for generating API test database
-
+```
 
 PHP Unit Tests
 ==============
@@ -44,8 +45,8 @@ Very low coverage.
 
 To execute the test suite run
 
-   cd test/php
-   phpunit ../
+    cd test/php
+    phpunit ../
 
 It will read phpunit.xml which points to the library, test path, bootstrap
 strip and set other parameters.
@@ -98,7 +99,10 @@ be documented.
 
 These tests are meant to test the different API endpoints and their parameters.
 They require a preimported test database, which consists of the import of a
-planet extract. The polygons defining the extract can be found in the test/testdb
+planet extract. A precompiled PBF with the necessary data can be downloaded from
+http://www.nominatim.org/data/test/nominatim-api-testdata.pbf
+
+The polygons defining the extract can be found in the test/testdb
 directory. There is also a reduced set of wikipedia data for this extract,
 which you need to import as well. For Tiger tests the data of South Dakota
 is required. Get the Tiger files `46*`.

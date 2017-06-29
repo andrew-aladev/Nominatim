@@ -23,6 +23,8 @@ foreach (df ${INSTALLDOCFILES})
     )
 endforeach()
 
+# Copied static documentation
+
 set (
     GENERALDOCFILES
     "Installation.md"
