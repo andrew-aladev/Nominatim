@@ -59,9 +59,6 @@ $aCMDOptions
   );
 getCmdOpt($_SERVER['argv'], $aCMDOptions, $aCMDResult, true, true);
 
-echo "ololo " . $aCMDResult['max-index'];
-exit(1);
-
 $bDidSomething = false;
 
 // Check if osm-file is set and points to a valid file if --all or --import-data is given
